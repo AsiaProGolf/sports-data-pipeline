@@ -1,6 +1,6 @@
 # Sports Data Pipeline — Full Recipe (golf event field, rankings, profiles)
 
-The detailed reference behind `SKILL.md`. Codified from the ADT Bangkok Classic 2026 build — a real field/rankings/interview-prep pull for an Asian Development Tour event co-sanctioned by the China Men's Professional Golf Tour. Read this for any actual pull; the SKILL.md is the summary.
+The detailed reference behind `SKILL.md`: a workflow for assembling golf-event fields, rankings, and player profiles. Read this for any actual pull; the SKILL.md is the summary.
 
 ## Table of contents
 1. The two paths — when to use which
@@ -34,7 +34,7 @@ The China Tour live-scoring stack (`scoringlive.iyoupin.top`, "wegolf") exposes 
 Everything is keyed on two integers from the public scoring URL:
 
 ```
-?serid={shopId}_{eventId}      e.g. serid=10020_10449  →  shopId=10020, eventId=10449
+?serid={shopId}_{eventId}
 ```
 
 `eventRoundId` is a third id you obtain from the profile call (below) — one per round.
@@ -63,11 +63,13 @@ https://scoringlive.iyoupin.top/api/wegolf/event/leaderboard2?eventId={E}&eventR
 
 ### 2.4 Request mechanics
 
-Send a browser-ish `User-Agent` and `Accept: application/json`. No auth. Example (Python, mirroring the monitor script):
+Send a browser-ish `User-Agent` and `Accept: application/json`. No auth. Example (Python; replace the placeholders with IDs from the event URL):
 
 ```python
 import json, urllib.request
-API = "https://scoringlive.iyoupin.top/api/wegolf/event/simple/profile?eventId=10449&shopId=10020"
+event_id = "EVENT_ID"
+shop_id = "SHOP_ID"
+API = f"https://scoringlive.iyoupin.top/api/wegolf/event/simple/profile?eventId={event_id}&shopId={shop_id}"
 req = urllib.request.Request(API, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
 data = json.load(urllib.request.urlopen(req, timeout=30)).get("data", {})
 ```
@@ -80,7 +82,7 @@ You now have the full field + live scores. Hand off to **§7 step 4 onward** —
 
 ## 3. Path B — source map (what worked, per data type)
 
-For events NOT on wegolf/iyoupin. Best source and access pattern per data type, with whether Exa (web search / fetch) can extract it cleanly:
+For events NOT on wegolf/iyoupin. Best source and access pattern per data type, with whether the Exa search tool can extract it cleanly:
 
 | Data type | Best source(s) | URL pattern / access | Extractable via Exa? |
 |---|---|---|---|
@@ -104,7 +106,7 @@ Exa is semantic — write each query as a description of the ideal page, not key
 - **OWGR (one per player):** `"{Full Name} Official World Golf Ranking OWGR profile"` → top hit is the owgr.com profile; the rank is right in the highlight, so often no fetch needed.
 - **Tour OoM:** `"Asian Development Tour Order of Merit {Year} standings leaders ranking"` (adapt tour name) → surfaced the OCS TIC OoM table as plain text.
 - **WAGR / amateur:** `"{Name} World Amateur Golf Ranking WAGR {Year}"` + `"{Name} current WAGR position {Year} ranked"` → Wikipedia / Grokipedia / college roster carry the figure with a date.
-- **Romanization tip:** search BOTH name orders for Asian names (`"Jin Zihao"` AND `"Zihao Jin"`; `"Su Ching-hung"` / `"Su Ching Hung"` / `"Chin-Hung Su"`). OWGR slugs are unpredictable on order.
+- **Romanization tip:** search BOTH name orders for Asian names (`"{Given} {Family}"` AND `"{Family} {Given}"`), plus hyphen and spacing variants. OWGR slugs are unpredictable on order.
 
 ---
 
@@ -134,9 +136,9 @@ field_source (which article / preview confirmed it)
 
 ## 6. Gotchas
 
-- **Official full start lists are the hardest artifact (Path B).** OCS-Sport / OCS-Asia live-scoring + entry-list pages are Angular SPAs — search/fetch tools get an empty shell. Budget a headless-browser render (e.g. Playwright `browser_navigate` + `browser_snapshot`) if you need all N names with scores. Press recaps + the official preview cover the marquee 10–20; the long tail (club pros, qualifiers) usually isn't recoverable without the browser scrape. **Path A (wegolf/iyoupin) eliminates this gotcha entirely — always check for it first.**
-- **Stale-ranking risk.** OWGR updates weekly (Mondays); WAGR roughly weekly. Always stamp "as of {date}" and re-pull on event week. Different sources disagree by a few spots (e.g. Amarin 707 on OWGR vs 733 on International Series) because they snapshot different weeks — cite the source per figure.
-- **Name collisions.** "Bo Peng" / "Peng Bo" matched TWO different real players (a 25-yo PGA Tour Americas player and a China Tour veteran). Disambiguate by age / college / recent results before trusting an OWGR number. Same vigilance for any common CJK-romanized name.
+- **Official full start lists are the hardest artifact (Path B).** OCS-Sport / OCS-Asia live-scoring + entry-list pages are Angular SPAs — search/fetch tools get an empty shell. Budget a headless-browser render (Playwright `browser_navigate` + `browser_snapshot`, or another browser automation tool) if you need all N names with scores. Press recaps + the official preview cover the marquee 10–20; the long tail (club pros, qualifiers) usually isn't recoverable without the browser scrape. **Path A (wegolf/iyoupin) eliminates this gotcha entirely — always check for it first.**
+- **Stale-ranking risk.** OWGR updates weekly (Mondays); WAGR roughly weekly. Always stamp "as of {date}" and re-pull on event week. Different sources disagree by a few spots (e.g. rank 707 in one source vs 733 in another) because they snapshot different weeks — cite the source per figure.
+- **Name collisions.** A reversed two-part name matched two different players with distinct tour histories. Disambiguate by age / college / recent results before trusting an OWGR number. Same vigilance for any common CJK-romanized name.
 - **Thai (and broad Asian) romanization.** Many spellings; the press uses one, OWGR another. Search variants and match on birth year / tour history, not string equality.
 - **Amateur vs pro.** Amateurs (status `Am`) carry BOTH a WAGR and an OWGR (OWGR includes amateurs). Capture both. A college amateur's "in the field" claim is the LEAST reliable — college seasons + invitational status mean they're often not actually entered. Confirm amateurs against an official source specifically.
 - **The OoM TIC table is the OCS exception** that DOES render to text — useful, but its URL carried a `season=2023` param while returning 2026 data, so don't trust the URL params; trust the table contents + cross-check the leader against a recent article.
@@ -166,9 +168,3 @@ To watch a live event for weather holds, suspensions, round changes, or score sw
 - Sets `PATH` for cron's minimal environment, exits quietly on transient network errors, and advances state even if the send fails so it doesn't spam on retry.
 
 To reuse: implement the pattern, swap `eventId` / `shopId` for the new event, point it at the right chat/webhook, add a cron entry, and remove the cron entry after the event. For score-change alerting (not just the notice banner), poll the `leaderboard2` endpoint (§2.3) instead and hash the leader / top-N.
-
----
-
-## Source provenance
-
-Built from the ADT Bangkok Classic 2026 research (Phoenix Gold Golf Bangkok, 25–28 Jun 2026; ADT Leg 7 co-sanctioned by the China Men's Professional Golf Tour). Sources that fed the recipe: Bangkok Post + Philstar + Sina round recaps and preview (field confirmation), owgr.com profiles (OWGR), adt.ocs-asia.com TIC OoM table (Order of Merit), Wikipedia season + player pages and Grokipedia/college rosters (profiles + WAGR), and the live discovery of the `scoringlive.iyoupin.top` wegolf API (Path A).

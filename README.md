@@ -2,7 +2,7 @@
 
 A Claude Code skill and detailed reference for assembling structured golf tournament data: who's in the field, how each player ranks (OWGR, tour Order of Merit, WAGR for amateurs), and a profile per player.
 
-Built from a live production pull on the ADT Bangkok Classic 2026 (Asian Development Tour / China Men's Professional Golf Tour co-sanction). Covers any event regardless of scoring platform.
+Covers golf events across scoring platforms, with workflows for live APIs and browser-rendered entry lists.
 
 ## What It Does
 
@@ -25,7 +25,7 @@ For events not on wegolf/iyoupin, the pipeline uses Exa web search to reconstruc
 
 ## Installation
 
-Copy `SKILL.md` (and optionally `references/recipe.md`) into your Claude Code skills directory. The skill activates automatically when a task matches any of its trigger phrases.
+Copy `SKILL.md` and `references/recipe.md` into a `sports-data-pipeline` folder in your Claude Code skills directory, preserving the `references/` subdirectory. The skill activates automatically when a task matches any of its trigger phrases.
 
 ## Requirements
 
